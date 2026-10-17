@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slightly Mad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=EB+Garamond:ital@0;1&display=swap">
+<style>
+  /* Layout: a single open notebook on a dark desk, two facing pages, controls underneath. One deliberate dark look. */
+  :root {
+    --desk: #161a21;
+    --desk-glow: #262c37;
+    --paper: #f2eee3;
+    --paper-edge: #d9d2bf;
+    --gutter-shade: rgba(60, 48, 30, 0.22);
+    --ink: #22306b;
+    --folio: #8a8270;
+    --ui: #a9b0bd;
+    --ui-line: #3a4250;
+    --font-hand: "Caveat", "Bradley Hand", "Segoe Print", cursive;
+    --font-book: "EB Garamond", Garamond, Georgia, serif;
+    --stroke: 110ms;
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 40%, var(--desk-glow), var(--desk) 70%) var(--desk);
+    color: var(--ui);
+    font-family: var(--font-book);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+
+  .book {
+    position: relative;
+    isolation: isolate;
+    width: min(980px, 100%);
+    max-width: 100%;
+    aspect-ratio: 1.42;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    perspective: 2600px;
+    container-type: inline-size;
+    filter: drop-shadow(0 28px 40px rgba(0, 0, 0, 0.55));
+  }
+  /* Stacked page edges peeking out under the spread */
+  .book::before {
+    content: "";
+    position: absolute;
+    inset: 0.6cqw -0.8cqw -1.2cqw;
+    background: repeating-linear-gradient(to bottom, var(--paper-edge) 0 2px, var(--paper) 2px 4px);
+    border-radius: 1cqw;
+    z-index: -1;
+  }
+
+  .page {
+    position: relative;
+    background-color: var(--paper);
+    overflow: hidden;
+  }
+  .page.left  { border-radius: 0.8cqw 0.2cqw 0.2cqw 0.8cqw; background-image: linear-gradient(to left, var(--gutter-shade), transparent 9%); }
+  .page.right { border-radius: 0.2cqw 0.8cqw 0.8cqw 0.2cqw; background-image: linear-gradient(to right, var(--gutter-shade), transparent 9%); }
+
+  .text {
+    position: absolute;
+    top: 9%;
+    bottom: 13%;
+    font-family: var(--font-hand);
+    font-weight: 500;
+    font-size: 2.35cqw;
+    line-height: 1.5;
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .left .text  { left: 11%; right: 9%; }
+  .right .text { left: 9%;  right: 11%; }
+
+  .folio {
+    position: absolute;
+    bottom: 5.5%;
+    font-family: var(--font-book);
+    font-style: italic;
+    font-size: 1.35cqw;
+    color: var(--folio);
+    font-variant-numeric: oldstyle-nums;
+  }
+  .left .folio  { left: 11%; }
+  .right .folio { right: 11%; }
+
+  .word { display: inline-block; white-space: nowrap; }
+  .ch {
+    display: inline-block;
+    clip-path: inset(-0.4em calc(100% + 0.4em) -0.4em -0.4em);
+  }
+  .ch.ink {
+    clip-path: inset(-0.4em -0.4em -0.4em -0.4em);
+    transition: clip-path var(--stroke) linear;
+  }
+  .ch.now { clip-path: none; transition: none; }
+
+  /* The turning leaf */
+  .leaf {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 50%;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    z-index: 5;
+  }
+  .leaf .page {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .leaf .back { transform: rotateY(180deg); }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+  button {
+    font: italic 1.05rem var(--font-book);
+    color: var(--ui);
+    background: transparent;
+    border: 1px solid var(--ui-line);
+    border-radius: 999px;
+    padding: 6px 18px;
+    cursor: pointer;
+  }
+  button:hover { color: var(--paper); border-color: var(--folio); }
+  button:focus-visible { outline: 2px solid var(--paper-edge); outline-offset: 3px; }
+</style>
+</head>
+<body style="margin:0">
+
+<div class="book" id="book" aria-label="An open notebook filling with the phrase I’m going slightly mad">
+  <div class="page left"><div class="text" id="left-text"></div><span class="folio" id="left-folio">1</span></div>
+  <div class="page right"><div class="text" id="right-text"></div><span class="folio" id="right-folio">2</span></div>
+</div>
+
+<div class="controls">
+  <button type="button" id="pause">Pause</button>
+  <button type="button" id="restart">Start a fresh notebook</button>
+</div>
+
+<script>
+  const PHRASE = "I’m going slightly mad.";
+  const book = document.getElementById('book');
+  const leftText = document.getElementById('left-text');
+  const rightText = document.getElementById('right-text');
+  const leftFolio = document.getElementById('left-folio');
+  const rightFolio = document.getElementById('right-folio');
+  const pauseBtn = document.getElementById('pause');
+  const restartBtn = document.getElementById('restart');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let paused = false;
+  let run = 0;        // bumps on restart so an old loop stops
+  let spread = 0;     // spread 0 holds folios 1 and 2
+  let madness = 0;    // 0 = neat, 1 = frantic
+  let current = leftText;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function wait(ms, id) {
+    await sleep(ms);
+    while (paused && id === run) await sleep(100);
+  }
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function overflows(el) { return el.scrollHeight > el.clientHeight + 1; }
+
+  function makeWord(word) {
+    const w = document.createElement('span');
+    w.className = 'word';
+    const m = madness;
+    const rot = rand(-1, 1) * m * 7;
+    const lift = rand(-1, 1) * m * 0.18;
+    const size = 1 + rand(-0.05, 0.3) * m;
+    w.style.transform = `translateY(${lift}em) rotate(${rot}deg)`;
+    w.style.fontSize = size + 'em';
+    if (m > 0.4) w.style.fontWeight = Math.random() < m * 0.5 ? 600 : 500;
+    for (const c of word) {
+      const s = document.createElement('span');
+      s.className = 'ch';
+      s.textContent = c;
+      if (m > 0.2) s.style.transform = `rotate(${rand(-1, 1) * m * 6}deg)`;
+      w.appendChild(s);
+    }
+    return w;
+  }
+
+  function place(word) {
+    const add = target => {
+      if (target.childNodes.length) target.appendChild(document.createTextNode(' '));
+      target.appendChild(word);
+      if (!overflows(target)) return true;
+      word.remove();
+      if (target.lastChild && target.lastChild.nodeType === 3) target.lastChild.remove();
+      return false;
+    };
+    return add(current);
+  }
+
+  function setFolios() {
+    leftFolio.textContent = spread * 2 + 1;
+    rightFolio.textContent = spread * 2 + 2;
+  }
+
+  async function turnPage(id) {
+    spread++;
+    if (reduced) {
+      leftText.replaceChildren();
+      rightText.replaceChildren();
+      setFolios();
+      current = leftText;
+      return;
+    }
+    const leaf = document.createElement('div');
+    leaf.className = 'leaf';
+    const front = document.querySelector('.page.right').cloneNode(true);
+    front.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+    const back = document.createElement('div');
+    back.className = 'page left back';
+    back.innerHTML = `<span class="folio">${spread * 2 + 1}</span>`;
+    leaf.append(front, back);
+    book.appendChild(leaf);
+
+    rightText.replaceChildren();
+    rightFolio.textContent = spread * 2 + 2;
+
+    const anim = leaf.animate(
+      [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(-180deg)' }],
+      { duration: 1300, easing: 'cubic-bezier(.45,.05,.3,1)', fill: 'forwards' }
+    );
+    while (anim.playState !== 'finished') {
+      if (id !== run) { leaf.remove(); return; }
+      if (paused) anim.pause(); else if (anim.playState === 'paused') anim.play();
+      await sleep(50);
+    }
+    leftText.replaceChildren();
+    leftFolio.textContent = spread * 2 + 1;
+    leaf.remove();
+    current = leftText;
+  }
+
+  async function writeWord(text, id, instant) {
+    const word = makeWord(text);
+    if (!place(word)) {
+      if (current === leftText) current = rightText;
+      else await turnPage(id);
+      if (id !== run) return;
+      place(word);
+    }
+    const chars = word.querySelectorAll('.ch');
+    if (instant || reduced) {
+      chars.forEach(c => c.classList.add('now'));
+      if (reduced && !instant) await wait(260 - 120 * madness, id);
+      return;
+    }
+    const base = 85 - 45 * madness;
+    book.style.setProperty('--stroke', Math.round(base * 1.3) + 'ms');
+    for (const c of chars) {
+      if (id !== run) return;
+      c.classList.add('ink');
+      await wait(base + rand(-15, 25), id);
+    }
+    await wait(base * 1.6 + rand(0, 60), id);
+  }
+
+  async function writeLoop(id) {
+    // Open on a page that has already begun
+    for (let i = 0; i < 3; i++) {
+      for (const w of PHRASE.split(' ')) await writeWord(w, id, true);
+    }
+    while (id === run) {
+      let phrase = PHRASE;
+      if (Math.random() < madness * 0.35) phrase = phrase.toUpperCase();
+      for (const w of phrase.split(' ')) {
+        if (id !== run) return;
+        await writeWord(w, id, false);
+      }
+      madness = Math.min(1, madness + 0.025);
+      await wait(200 - 150 * madness, id);
+    }
+  }
+
+  function start() {
+    run++;
+    spread = 0;
+    madness = 0;
+    current = leftText;
+    book.querySelectorAll('.leaf').forEach(l => l.remove());
+    leftText.replaceChildren();
+    rightText.replaceChildren();
+    setFolios();
+    writeLoop(run);
+  }
+
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+  });
+  restartBtn.addEventListener('click', () => {
+    paused = false;
+    pauseBtn.textContent = 'Pause';
+    start();
+  });
+
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(start);
+</script>
+</body>
+</html>
