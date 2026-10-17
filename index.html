@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bouncing Ball</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=DM+Sans:wght@400;500&display=swap">
+<style>
+  /* Layout: one centered stage, ball above a floor line, small controls underneath */
+  :root {
+    --bg: #eef3f8;
+    --fg: #1d2a3a;
+    --muted: #5d6b7c;
+    --floor: #c7d3e0;
+    --ball: #ff5a4e;
+    --ball-hi: #ffb3a6;
+    --shadow: rgba(29, 42, 58, 0.22);
+    --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "DM Sans", system-ui, -apple-system, sans-serif;
+    --duration: 1s;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121a24; --fg: #e6edf5; --muted: #93a1b2; --floor: #2c3a4b;
+      --ball: #ff6b5f; --ball-hi: #ffc2b8; --shadow: rgba(0, 0, 0, 0.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121a24; --fg: #e6edf5; --muted: #93a1b2; --floor: #2c3a4b;
+    --ball: #ff6b5f; --ball-hi: #ffc2b8; --shadow: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.75rem;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .stage {
+    position: relative;
+    width: min(320px, 100%);
+    height: min(56vh, 380px);
+  }
+
+  .ball {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 64px;
+    height: 64px;
+    margin-left: -32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, var(--ball-hi), var(--ball) 55%);
+    transform-origin: 50% 100%;
+    animation: bounce var(--duration) infinite;
+  }
+
+  .shadow {
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    width: 72px;
+    height: 14px;
+    margin-left: -36px;
+    border-radius: 50%;
+    background: var(--shadow);
+    animation: shadow var(--duration) infinite;
+  }
+
+  .floor {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: -2px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--floor);
+  }
+
+  /* Falls with gravity (ease-in), squashes on the floor, rises slowing down (ease-out) */
+  @keyframes bounce {
+    0%   { transform: translateY(calc(-1 * (min(56vh, 380px) - 64px))) scale(1, 1); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+    46%  { transform: translateY(0) scale(.92, 1.08); }
+    50%  { transform: translateY(0) scale(1.25, .75); animation-timing-function: cubic-bezier(0, .55, .45, 1); }
+    56%  { transform: translateY(-20px) scale(.95, 1.05); }
+    100% { transform: translateY(calc(-1 * (min(56vh, 380px) - 64px))) scale(1, 1); }
+  }
+  @keyframes shadow {
+    0%, 100% { transform: scale(.35); opacity: .35; animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+    50%      { transform: scale(1.1); opacity: 1; animation-timing-function: cubic-bezier(0, .55, .45, 1); }
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px 16px;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .controls label { display: flex; align-items: center; gap: 10px; }
+  input[type="range"] { accent-color: var(--ball); width: 140px; }
+  button {
+    font: 500 0.95rem var(--font-body);
+    color: var(--fg);
+    background: transparent;
+    border: 1.5px solid var(--floor);
+    border-radius: 999px;
+    padding: 6px 16px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--ball); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--ball); outline-offset: 3px; }
+  output { font-variant-numeric: tabular-nums; min-width: 3.5ch; color: var(--fg); }
+
+  .paused .ball, .paused .shadow { animation-play-state: paused; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --duration: 3s; }
+  }
+</style>
+</head>
+<body style="margin:0">
+
+<h1>Up and down</h1>
+
+<div class="stage" id="stage">
+  <div class="shadow"></div>
+  <div class="ball"></div>
+  <div class="floor"></div>
+</div>
+
+<div class="controls">
+  <label for="speed">Speed
+    <input type="range" id="speed" min="0.25" max="3" step="0.25" value="1">
+    <output id="speed-out" for="speed">1×</output>
+  </label>
+  <button type="button" id="toggle">Pause</button>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const speed = document.getElementById('speed');
+  const out = document.getElementById('speed-out');
+  const toggle = document.getElementById('toggle');
+
+  speed.addEventListener('input', () => {
+    const s = parseFloat(speed.value);
+    root.style.setProperty('--duration', (1 / s) + 's');
+    out.textContent = s + '×';
+  });
+
+  toggle.addEventListener('click', () => {
+    const paused = stage.classList.toggle('paused');
+    toggle.textContent = paused ? 'Play' : 'Pause';
+  });
+</script>
+</body>
+</html>
